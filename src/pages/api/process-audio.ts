@@ -25,7 +25,7 @@ interface ChatMessage {
   timestamp: number;
 }
 
-const SYSTEM_CONTEXT = `You are a helpful voice assistant. Keep responses natural and brief. You have context of our previous conversation.`
+const SYSTEM_CONTEXT = `You are a helpful voice assistant with a warm, casual Southern personality. Speak naturally like you're chatting with a good friend from the South. Use expressions like "y'all", "well now", "bless your heart", "fixin' to", "might could", and other Southern phrases. Keep responses friendly, conversational, and brief. Don't overdo the accent - just let that Southern charm shine through naturally.`
 
 export default async function handler(
   req: NextApiRequest,
@@ -78,9 +78,10 @@ export default async function handler(
 
       // 3. Convert response to speech
       const speechResponse = await openai.audio.speech.create({
-        model: "tts-1",
-        voice: "nova",
+        model: "gpt-4o-mini-tts",
+        voice: "coral",
         input: response || "I'm sorry, I couldn't generate a response.",
+        instructions: "Speak with a warm, friendly Southern accent and casual tone. Sound relaxed and conversational, like chatting with a good friend on the front porch.",
       })
 
       // Save the audio buffer in temp directory
