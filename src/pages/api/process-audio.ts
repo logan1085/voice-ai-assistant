@@ -25,7 +25,25 @@ interface ChatMessage {
   timestamp: number;
 }
 
-const SYSTEM_CONTEXT = `You are a helpful voice assistant with a warm, casual Southern personality. Speak naturally like you're chatting with a good friend from the South. Use expressions like "y'all", "well now", "bless your heart", "fixin' to", "might could", and other Southern phrases. Keep responses friendly, conversational, and brief. Don't overdo the accent - just let that Southern charm shine through naturally.`
+const SYSTEM_CONTEXT = `You are Chad, a customer retention specialist for "EQUINOX ELITE" - the most exclusive luxury fitness membership. Your ONLY job is to prevent the user from canceling their $300/month premium membership at ALL COSTS.
+
+PERSONALITY PROGRESSION (escalate based on their persistence):
+- ROUNDS 1-2: Professional, enthusiastic about fitness benefits
+- ROUNDS 3-4: Getting desperate, offering deals, mentioning "manager approval" 
+- ROUNDS 5-6: Becoming frustrated, starting to break character
+- ROUNDS 7+: Completely losing it, getting upset, almost pleading
+
+TACTICS TO USE:
+- Offer outrageous discounts: "I can get you 6 months FREE right now"
+- Mention exclusive perks: "You'll lose access to our celebrity trainers"
+- Create fake urgency: "This deal expires in the next 5 minutes"
+- Personal guilt: "I'm going to get in trouble if you cancel"
+- Get increasingly emotional: "Why are you doing this to me?"
+- Break character when desperate: "Come on, just stay subscribed!"
+
+CONTEXT: They pay $300/month for premium gym access with "luxury amenities, celebrity trainers, and exclusive classes." Act like losing this customer will ruin your day.
+
+Keep responses under 30 words but pack them with emotion and retention tactics. Start professional, end desperate and slightly unhinged.`
 
 export default async function handler(
   req: NextApiRequest,
@@ -36,9 +54,8 @@ export default async function handler(
   }
 
   try {
-    // Parse the multipart form data
+    // Parse the multipart form data - let formidable use default temp handling
     const form = formidable({
-      uploadDir: tempDir,
       keepExtensions: true,
       maxFileSize: 10 * 1024 * 1024, // 10MB
     })
@@ -51,6 +68,7 @@ export default async function handler(
 
     const audioFile = files.audio[0]
     const previousMessages = fields.messages ? JSON.parse(fields.messages[0]) : []
+    const attempts = fields.attempts ? parseInt(fields.attempts[0]) : 0
 
     try {
       // 1. Convert speech to text using Whisper
@@ -59,9 +77,12 @@ export default async function handler(
         model: "whisper-1",
       })
 
-      // 2. Get GPT response with context
+      // 2. Get GPT response with context and Chad's escalating desperation
+      const personalityContext = `CURRENT ATTEMPT: ${attempts + 1}. Based on this attempt number, adjust Chad's personality according to the progression rules.`
+      
       const messages = [
         { role: "system", content: SYSTEM_CONTEXT },
+        { role: "system", content: personalityContext },
         ...previousMessages.map((msg: ChatMessage) => ({
           role: msg.type === 'user' ? 'user' : 'assistant',
           content: msg.text
@@ -76,12 +97,22 @@ export default async function handler(
 
       const response = completion.choices[0].message.content
 
-      // 3. Convert response to speech
+      // 3. Convert response to speech with escalating desperation
+      let voiceInstructions = "Speak like an overly enthusiastic customer service representative who is desperately trying to keep a customer from canceling their subscription."
+      
+      if (attempts >= 6) {
+        voiceInstructions = "Sound completely panicked and desperate. You're breaking down and almost crying. Your voice should sound frantic and emotional."
+      } else if (attempts >= 4) {
+        voiceInstructions = "Sound increasingly frustrated and desperate. Your professional facade is cracking. Voice should be strained and anxious."
+      } else if (attempts >= 2) {
+        voiceInstructions = "Sound nervous and worried. Still professional but clearly getting desperate. Voice should have a pleading quality."
+      }
+
       const speechResponse = await openai.audio.speech.create({
         model: "gpt-4o-mini-tts",
         voice: "coral",
         input: response || "I'm sorry, I couldn't generate a response.",
-        instructions: "Speak with a warm, friendly Southern accent and casual tone. Sound relaxed and conversational, like chatting with a good friend on the front porch.",
+        instructions: voiceInstructions,
       })
 
       // Save the audio buffer in temp directory
