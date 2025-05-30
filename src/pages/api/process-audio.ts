@@ -3,6 +3,7 @@ import { OpenAI } from 'openai'
 import formidable from 'formidable'
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
 
 // Disable the default body parser
 export const config = {
@@ -15,11 +16,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
-// Ensure temp directory exists
-const tempDir = path.join(process.cwd(), 'temp')
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir)
-}
+// Use system temp directory (works in serverless)
+const tempDir = os.tmpdir()
 
 interface ChatMessage {
   type: 'user' | 'assistant';
@@ -78,18 +76,14 @@ export default async function handler(
 
       const response = completion.choices[0].message.content
 
-      if (!response) {
-        return res.status(500).json({ error: 'No response from AI' })
-      }
-
       // 3. Convert response to speech
       const speechResponse = await openai.audio.speech.create({
         model: "tts-1",
         voice: "nova",
-        input: response,
+        input: response || "I'm sorry, I couldn't generate a response.",
       })
 
-      // Save the audio buffer
+      // Save the audio buffer in temp directory
       const buffer = Buffer.from(await speechResponse.arrayBuffer())
       const outputPath = path.join(tempDir, `response-${Date.now()}.mp3`)
       fs.writeFileSync(outputPath, buffer)

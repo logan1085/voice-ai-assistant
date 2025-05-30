@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
 
 export default function handler(
   req: NextApiRequest,
@@ -11,7 +12,8 @@ export default function handler(
     return res.status(400).json({ error: 'Invalid filename' })
   }
 
-  const filePath = path.join(process.cwd(), 'temp', filename)
+  // Use system temp directory
+  const filePath = path.join(os.tmpdir(), filename)
 
   try {
     const stat = fs.statSync(filePath)
@@ -24,7 +26,11 @@ export default function handler(
     
     // Delete the file after it's been sent
     readStream.on('end', () => {
-      fs.unlinkSync(filePath)
+      try {
+        fs.unlinkSync(filePath)
+      } catch (error) {
+        console.error('Error deleting temp file:', error)
+      }
     })
   } catch (error) {
     console.error('Error serving audio file:', error)
