@@ -78,6 +78,10 @@ export default async function handler(
 
       const response = completion.choices[0].message.content
 
+      if (!response) {
+        return res.status(500).json({ error: 'No response from AI' })
+      }
+
       // 3. Convert response to speech
       const speechResponse = await openai.audio.speech.create({
         model: "tts-1",
